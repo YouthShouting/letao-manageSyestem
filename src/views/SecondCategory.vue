@@ -127,7 +127,7 @@ export default {
     uploadImg(response, file, fileList){
       console.log(response)
       if(res.data.success){
-
+console.log(1)
       }  
       
     }
