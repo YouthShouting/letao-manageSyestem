@@ -32,7 +32,11 @@
         title="添加分类"
         :visible.sync="addFirstCataDialog"
         width="30%">
-        <el-input placeholder="请输入品牌名称" v-model="cateName"></el-input>
+         <el-form :model="addFormData" :rules="myrules" ref = "addRef">
+            <el-form-item  prop = "cateName" >
+              <el-input v-model="addFormData.cateName" autocomplete="off" placeholder = "请输入分类名称"></el-input>
+            </el-form-item>
+          </el-form>
         <span slot="footer" class="dialog-footer">
           <el-button @click="addFirstCataDialog = false">关闭</el-button>
           <el-button type="primary" @click="handleSave">保存</el-button>
@@ -50,12 +54,17 @@ export default {
       totalCount: 0,
       firstIndex: 1,
       lastIndex: '',
-      cateName: '',
       queryCateObj: {
         page: 1,
-        pageSize: 20
+        pageSize: 100
       },
-      addFirstCataDialog: false
+      addFirstCataDialog: false,
+      addFormData: {
+        cateName: ''
+      },
+      myrules: {
+        cateName: [{ required: true, message: '请输入分类名称', trigger: 'blur' }]
+      }
     }
   },
   created () {
@@ -64,26 +73,36 @@ export default {
   methods: {
     initTable () {
       queryFirstCate(this.queryCateObj).then(res => {
-        // console.log('-----')
         // console.log(res)
         if (res.status === 200) {
           this.firstCategoryData = res.data.rows
-          this.totalCount = res.data.total
+          this.totalCount = res.data.rows.length
           this.lastIndex = res.data.rows.length
         }
       })
     },
     handleAdd () {
       this.addFirstCataDialog = true
+      this.addFormData.cateName = ''
+      this.$nextTick(() => {
+        this.$refs.addRef.clearValidate()
+      })
     },
     handleSave () {
-      this.addFirstCataDialog = false
-      addFirstCate({ categoryName: this.cateName }).then(res => {
-        console.log(this.cateName)
-        if (res.status === 200) {
-          console.log(res)
-          this.initTable()
-          this.cateName = ''
+      this.$refs.addRef.validate(isPass => {
+        if (isPass) {
+          addFirstCate({ categoryName: this.addFormData.cateName }).then(res => {
+            if (res.status === 200) {
+              // console.log(res)
+              this.initTable()
+              this.$message.success('添加成功')
+              this.addFirstCataDialog = false
+            } else {
+              this.$message.error('添加失败')
+            }
+          })
+        } else {
+          this.$message.error('请填写分类名称')
         }
       })
     },
