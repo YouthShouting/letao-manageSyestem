@@ -1,7 +1,7 @@
 <template>
     <div class="secondCategroy">
        <el-card class="box-card">
-          <el-button type="primary" @click="addbrand">添加品牌</el-button>
+          <el-button type="primary" @click="handleAddbrand">添加品牌</el-button>
         <el-table
             border
             stripe
@@ -42,40 +42,46 @@
         </el-table>
        <div class="showCount">显示第 {{firstIndex}} 到第 {{lastIndex}} 条记录，总共 {{totalCount}} 条记录</div>
      </el-card>
-     <el-dialog
-        title="添加品牌"
-        :visible.sync="addSecondCataDialog"
-        width="30%">
-            <div class="selectCate">请选择分类：
-               <el-select v-model="selectedValue">
-                  <el-option
-                    v-for="item in options"
-                    :key="item.id"
-                    :label="item.categoryName"
-                    :value="item.id">
-                  </el-option>
-                </el-select>
-            </div>
-            <el-input placeholder="请输入分类名称" v-model="CateName"></el-input>
-              <el-upload class="upload"
-              action="http://127.0.0.1:3000/category/addSecondCategoryPic"
-              name="pic1"
-              :show-file-list="false"
-              with-credentials
-              :on-success="uploadImg"
-              >
-              <el-button size="small" type="info">请选择上传文件</el-button>
-              <div class="imgView"><img src="" alt=""></div>
+         <el-dialog title="添加品牌" :visible.sync="addDialogFormVisible">
+          <el-form :model="addFormData" :rules="myrules" ref = "addRef">
+             <el-form-item label="请选择分类：" prop = "categoryId">
+              <el-select v-model.number="addFormData.categoryId" placeholder="">
+                <el-option
+                v-for = "item in cateList"
+                :key = "item.id"
+                :label = "item.categoryName"
+                :value = "item.id"></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item  prop = "brandName" >
+              <el-input v-model="addFormData.brandName" autocomplete="off" placeholder = "请输入品牌名称"></el-input>
+            </el-form-item>
+            <el-form-item  prop = "brandLogo" >
+              <el-upload
+                class="upload-demo"
+                action="http://127.0.0.1:3000/category/addSecondCategoryPic"
+                :show-file-list = "false"
+                :on-success = "uploadImg"
+                name = "pic1"
+                with-credentials>
+                <el-button type="info" plain size = "small">请选择上传文件</el-button>
+                <div class="brandImg">
+                  <img :src="addFormData.brandLogo ===''? '' : 'http://127.0.0.1:3000/'+ addFormData.brandLogo" alt="" ref = "imgPre">
+                </div>
               </el-upload>
-              <span slot="footer" class="dialog-footer">
-                <el-button @click="addSecondCataDialog = false">关闭</el-button>
-                <el-button type="primary" @click="addSecondCataDialog = false">保存</el-button>
-              </span>
+
+            </el-form-item>
+
+          </el-form>
+          <div slot="footer" class="dialog-footer">
+            <el-button @click="addDialogFormVisible = false">关闭</el-button>
+            <el-button type="primary" @click="handleSave">保存</el-button>
+          </div>
         </el-dialog>
    </div>
 </template>
 <script>
-import { querySecondCate, queryFirstCate } from '@/api'
+import { querySecondCate, queryFirstCate, addSecondCate } from '@/api'
 export default {
   data () {
     return {
@@ -84,22 +90,34 @@ export default {
       totalCount: 0,
       firstIndex: 1,
       lastIndex: '',
-      addSecondCataDialog: false,
+      addDialogFormVisible: false,
       queryCateObj: {
         page: 1,
         pageSize: 20
       },
-      options: [],
-      selectedValue: '',
-      CateName: ''
+      addFormData: {
+        categoryId: '',
+        brandName: '',
+        brandLogo: '',
+        hot: 1
+      },
+      cateList: [],
+      myrules: {
+        brandName: [
+          { required: true, message: '请输入品牌名', triggle: 'blur' }
+        ],
+        categoryId: [
+          { required: true, message: '请选择分类' },
+          { type: 'number', message: '分类不能为空' }
+        ]
+      }
     }
   },
   created () {
-    this.initTable()
-    this.querySelectValue()
+    this.initData()
   },
   methods: {
-    initTable () {
+    initData () {
       querySecondCate(this.queryCateObj).then(res => {
         // console.log(res)
         if (res.status === 200) {
@@ -109,27 +127,50 @@ export default {
         }
       })
     },
-    querySelectValue () {
-      queryFirstCate(this.queryCateObj).then(res => {
-        // console.log(res)
-        if (res.status === 200) {
-          this.options = res.data.rows
-        }
-      })
-    },
     handleSelectionChange (val) {
       this.multipleSelection = val
       console.log(this.multipleSelection)
     },
-    addbrand () {
-      this.addSecondCataDialog = true
+    handleAddbrand () {
+      this.addDialogFormVisible = true
+      queryFirstCate(this.queryCateObj).then(res => {
+        // console.log(res)
+        if (res.status === 200) {
+          this.cateList = res.data.rows
+        }
+      })
+      this.$nextTick(() => {
+        this.$refs.addRef.clearValidate()
+      })
     },
-    uploadImg(response, file, fileList){
-      console.log(response)
-      if(res.data.success){
-console.log(1)
-      }  
-      
+    handleSave () {
+      this.$refs.addRef.validate(isPass => {
+        if (isPass) {
+          addSecondCate(this.addFormData).then(res => {
+            console.log(res)
+            if (res.status === 200) {
+              this.addDialogFormVisible = false
+              this.$message.success('添加成功')
+              this.initData()
+              this.addFormData = {
+                categoryId: '',
+                brandName: '',
+                brandLogo: '',
+                hot: 1
+              }
+            } else {
+              this.$message.error('添加失败')
+            }
+          })
+        } else {
+          this.$message.error('请提交完整的信息')
+        }
+      })
+    },
+    uploadImg (res, file, fileList) {
+      if (res.picAddr) {
+        this.addFormData.brandLogo = res.picAddr
+      }
     }
 
   }
@@ -153,9 +194,6 @@ console.log(1)
 .showCount{
     padding-top: 20px;
 }
-.selectCate{
-  padding: 10px 0;
-}
  .box-card {
     // width: 480px;
     width: auto;
@@ -163,9 +201,13 @@ console.log(1)
   .upload{
     margin-top: 10px;
   }
-    .imgView{
+    .brandImg{
       width: 100px;
       height: 100px;
       border: 1px solid #ccc;
+      img {
+        width: 100%;
+        height: 100%;
+      }
     }
 </style>
